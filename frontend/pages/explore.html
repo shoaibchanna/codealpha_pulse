@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Explore — Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar" id="navbar"></nav>
+
+<div class="layout">
+  <aside class="sidebar-left">
+    <div class="card">
+      <nav class="side-nav">
+        <button class="side-nav-btn" onclick="goTo('feed.html')">
+          <span class="side-nav-icon">🏠</span> Home
+        </button>
+        <button class="side-nav-btn active">
+          <span class="side-nav-icon">🔭</span> Explore
+        </button>
+        <button class="side-nav-btn" id="profile-nav-btn">
+          <span class="side-nav-icon">👤</span> Profile
+        </button>
+        <button class="side-nav-btn" onclick="openCompose()">
+          <span class="side-nav-icon">✏️</span> New Post
+        </button>
+      </nav>
+    </div>
+  </aside>
+
+  <main class="feed">
+    <!-- Search card -->
+    <div class="card" style="padding:1.5rem;text-align:center;background:linear-gradient(135deg,rgba(79,126,248,.06),rgba(244,114,182,.05))">
+      <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:.3rem">🔭 Explore Pulse</h2>
+      <p style="color:var(--text3);font-size:.875rem;margin-bottom:1.1rem">Search people or browse trending posts</p>
+      <div style="display:flex;align-items:center;gap:.5rem;background:var(--white);border:1.5px solid var(--border);border-radius:30px;padding:.45rem 1rem;max-width:440px;margin:0 auto;box-shadow:var(--shadow)">
+        <span>🔍</span>
+        <input type="text" id="search-input" placeholder="Search people by name or username…"
+               style="flex:1;border:none;outline:none;font-size:.9rem;font-family:inherit;background:transparent;color:var(--text)">
+        <button onclick="clearSearch()" id="clear-btn" style="display:none;background:none;border:none;color:var(--text3);font-size:1.1rem;cursor:pointer">✕</button>
+      </div>
+    </div>
+
+    <!-- People search results -->
+    <div id="people-section" style="display:none">
+      <div class="section-label">People</div>
+      <div class="card" id="people-list"></div>
+    </div>
+
+    <!-- Posts section -->
+    <div id="posts-section">
+      <div class="section-label">Trending Posts</div>
+      <div id="explore-posts"></div>
+    </div>
+  </main>
+
+  <aside class="sidebar-right">
+    <!-- Tags -->
+    <div class="card">
+      <div class="widget-title">Trending Tags</div>
+      <div id="tags-container" style="padding:.5rem 1.1rem 1rem;display:flex;flex-wrap:wrap;gap:.4rem"></div>
+    </div>
+    <!-- Suggestions -->
+    <div class="card" id="sugg-panel">
+      <div class="widget-title">Suggested People</div>
+      <div id="sugg-list"><div class="spinner-wrap"><div class="spinner"></div></div></div>
+    </div>
+  </aside>
+</div>
+
+<!-- Mobile nav -->
+<nav class="mobile-nav">
+  <button class="mobile-nav-item" onclick="goTo('feed.html')">
+    <span class="mobile-nav-icon">🏠</span>Home
+  </button>
+  <button class="mobile-nav-item active">
+    <span class="mobile-nav-icon">🔭</span>Explore
+  </button>
+  <button class="mobile-nav-item" onclick="openCompose()">
+    <span class="mobile-nav-icon">✏️</span>Post
+  </button>
+  <button class="mobile-nav-item" id="mobile-profile-btn">
+    <span class="mobile-nav-icon">👤</span>Me
+  </button>
+</nav>
+
+<div id="toast-wrap"></div>
+<script src="../js/app.js"></script>
+<script>
+var searchTimer = null;
+var TAGS = ['webdev','css','coding','photography','studyhacks','design','react','javascript'];
+
+document.addEventListener('DOMContentLoaded', function() {
+  buildNavbar('explore');
+
+  // Profile nav buttons
+  document.getElementById('profile-nav-btn').addEventListener('click', function() {
+    if (Auth.loggedIn) goTo('profile.html?u=' + Auth.user.username);
+    else goTo('login.html');
+  });
+  document.getElementById('mobile-profile-btn').addEventListener('click', function() {
+    if (Auth.loggedIn) goTo('profile.html?u=' + Auth.user.username);
+    else goTo('login.html');
+  });
+
+  // Render tags properly (no template literals in HTML)
+  var tagsEl = document.getElementById('tags-container');
+  TAGS.forEach(function(tag) {
+    var span = document.createElement('span');
+    span.className = 'hashtag';
+    span.style.cursor = 'pointer';
+    span.style.fontSize = '.85rem';
+    span.style.padding = '.2rem .5rem';
+    span.textContent = '#' + tag;
+    span.addEventListener('click', function() { searchByTag(tag); });
+    tagsEl.appendChild(span);
+  });
+
+  // Pre-fill search from URL param
+  var q = new URLSearchParams(location.search).get('q') || '';
+  if (q) {
+    document.getElementById('search-input').value = q;
+    document.getElementById('clear-btn').style.display = 'block';
+    doSearch(q);
+  } else {
+    loadExplorePosts();
+  }
+
+  if (Auth.loggedIn) loadSuggestions();
+  else document.getElementById('sugg-panel').style.display = 'none';
+
+  // Search input event
+  document.getElementById('search-input').addEventListener('input', function() {
+    var q = this.value.trim();
+    document.getElementById('clear-btn').style.display = q ? 'block' : 'none';
+    clearTimeout(searchTimer);
+    if (!q) { showPostsSection(); return; }
+    searchTimer = setTimeout(function() { doSearch(q); }, 350);
+  });
+  document.getElementById('search-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && this.value.trim()) doSearch(this.value.trim());
+  });
+});
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('clear-btn').style.display = 'none';
+  showPostsSection();
+}
+
+function showPostsSection() {
+  document.getElementById('people-section').style.display = 'none';
+  document.getElementById('posts-section').style.display  = 'block';
+}
+
+function searchByTag(tag) {
+  document.getElementById('search-input').value = '#' + tag;
+  document.getElementById('clear-btn').style.display = 'block';
+  toast('Browsing #' + tag, 'info');
+}
+
+async function doSearch(q) {
+  document.getElementById('people-section').style.display = 'block';
+  document.getElementById('posts-section').style.display  = 'none';
+  var el = document.getElementById('people-list');
+  el.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div></div>';
+  try {
+    var users = await apiGet('/users/search?q=' + encodeURIComponent(q));
+    if (!users.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:1.5rem"><div class="empty-icon">🔍</div><h3>No users found</h3><p>Try a different search term</p></div>';
+      return;
+    }
+    var html = '';
+    users.forEach(function(u) {
+      var followBtn = Auth.loggedIn
+        ? '<button class="btn btn-outline btn-sm" id="sf-' + u.id + '" onclick="quickFollow(\'' + esc(u.username) + '\',' + u.id + ')">Follow</button>'
+        : '';
+      html += '<div class="user-list-item">' +
+        '<img src="' + esc(avatarUrl(u.avatar_url, u.username)) + '" class="avatar-md" alt="" style="cursor:pointer" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' +
+        '<div class="user-list-info">' +
+          '<div class="user-list-name" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' + esc(u.full_name || u.username) + '</div>' +
+          '<div class="user-list-bio">@' + esc(u.username) + (u.bio ? ' · ' + esc(u.bio.slice(0,60)) : '') + '</div>' +
+        '</div>' + followBtn +
+      '</div>';
+    });
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = '<p style="color:var(--text3);padding:1rem;text-align:center">Search failed. Is the server running?</p>';
+  }
+}
+
+async function quickFollow(username, uid) {
+  if (!requireLogin()) return;
+  try {
+    var r   = await apiPost('/users/' + username + '/follow');
+    var btn = document.getElementById('sf-' + uid);
+    if (btn) {
+      btn.textContent = r.following ? '✓ Following' : 'Follow';
+      btn.className   = 'btn btn-sm ' + (r.following ? 'btn-ghost' : 'btn-outline');
+    }
+    toast(r.following ? 'Following @' + username : 'Unfollowed @' + username, 'success');
+  } catch (e) { toast(e.error || 'Failed', 'error'); }
+}
+
+async function loadExplorePosts() {
+  var el = document.getElementById('explore-posts');
+  el.innerHTML = skeletons(3);
+  try {
+    var posts = await apiGet('/posts/explore');
+    if (!posts.length) {
+      el.innerHTML = '<div class="card empty-state"><div class="empty-icon">📭</div><h3>No posts yet</h3><p>Be the first to post!</p></div>';
+      return;
+    }
+    el.innerHTML = posts.map(buildPostCard).join('');
+  } catch {
+    el.innerHTML = '<div class="card empty-state"><div class="empty-icon">⚠️</div><h3>Failed to load posts</h3><p>Make sure the backend is running on port 5000.</p></div>';
+  }
+}
+
+async function loadSuggestions() {
+  var el = document.getElementById('sugg-list');
+  try {
+    var users = await apiGet('/users/suggestions');
+    if (!users.length) { document.getElementById('sugg-panel').style.display = 'none'; return; }
+    var html = '';
+    users.forEach(function(u) {
+      html += '<div class="suggestion-item">' +
+        '<img src="' + esc(avatarUrl(u.avatar_url, u.username)) + '" class="avatar-sm" alt="" style="cursor:pointer" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' +
+        '<div class="sugg-info">' +
+          '<div class="sugg-name" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' + esc(u.full_name || u.username) + '</div>' +
+          '<div class="sugg-handle">@' + esc(u.username) + '</div>' +
+        '</div>' +
+        '<button class="btn btn-outline btn-sm" id="es-' + u.id + '" onclick="quickFollow(\'' + esc(u.username) + '\',' + u.id + ')">Follow</button>' +
+      '</div>';
+    });
+    el.innerHTML = html;
+  } catch { document.getElementById('sugg-panel').style.display = 'none'; }
+}
+
+function skeletons(n) {
+  var h = '';
+  for (var i = 0; i < n; i++) {
+    h += '<div class="card post-card"><div style="display:flex;gap:.7rem">' +
+      '<div class="skeleton" style="width:42px;height:42px;border-radius:50%;flex-shrink:0"></div>' +
+      '<div style="flex:1;display:flex;flex-direction:column;gap:.5rem">' +
+        '<div class="skeleton" style="width:140px;height:14px"></div>' +
+        '<div class="skeleton" style="width:100%;height:13px;margin-top:.25rem"></div>' +
+        '<div class="skeleton" style="width:65%;height:13px"></div>' +
+      '</div></div></div>';
+  }
+  return h;
+}
+</script>
+</body>
+</html>

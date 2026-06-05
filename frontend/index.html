@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pulse — Share Your World</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body { background: var(--white); }
+  .landing-nav {
+    position:fixed; top:0; left:0; right:0; z-index:100;
+    height:58px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 2rem; background:rgba(255,255,255,.92);
+    backdrop-filter:blur(16px); border-bottom:1px solid var(--border);
+    box-shadow:0 1px 8px rgba(0,0,0,.05);
+  }
+  .hero {
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; text-align:center; padding:6rem 1.5rem 4rem;
+    background:linear-gradient(160deg,#f0f4ff 0%,#fff 35%,#fce8f3 100%);
+    position:relative; overflow:hidden;
+  }
+  .hero::before {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 50% 60% at 15% 30%,rgba(79,126,248,.1),transparent),
+      radial-gradient(ellipse 40% 50% at 85% 70%,rgba(244,114,182,.09),transparent);
+  }
+  .hero-title {
+    font-size:clamp(2.5rem,7vw,5rem); font-weight:800; line-height:1.08;
+    letter-spacing:-1.5px; margin-bottom:1.25rem;
+    background:linear-gradient(135deg,#1a1d27 0%,#4f7ef8 50%,#f472b6 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  .features { background:var(--bg); padding:5rem 1.5rem; }
+  .feature-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1.25rem; max-width:900px; margin:0 auto; }
+  .feature-card {
+    background:var(--white); border:1px solid var(--border); border-radius:18px;
+    padding:1.75rem; box-shadow:var(--shadow); text-align:center;
+    transition:transform .2s, box-shadow .2s;
+  }
+  .feature-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-md); }
+  .feature-icon { font-size:2.2rem; margin-bottom:.9rem; }
+  .feature-title { font-size:1rem; font-weight:800; margin-bottom:.4rem; }
+  .feature-desc { font-size:.875rem; color:var(--text3); line-height:1.65; }
+  .site-footer { background:var(--bg); border-top:1px solid var(--border); padding:2rem; text-align:center; color:var(--text3); font-size:.82rem; }
+  .mock-post { background:var(--white); border:1px solid var(--border); border-radius:16px; padding:1.1rem; text-align:left; box-shadow:var(--shadow); }
+  .mock-row { display:flex; align-items:center; gap:.6rem; margin-bottom:.65rem; }
+  .mock-avatar { width:36px; height:36px; border-radius:50%; object-fit:cover; }
+</style>
+</head>
+<body>
+
+<nav class="landing-nav">
+  <span class="nav-logo">Pulse ✨</span>
+  <div style="display:flex;gap:.6rem">
+    <a href="pages/explore.html" class="btn btn-ghost btn-sm">Explore</a>
+    <a href="pages/login.html"   class="btn btn-ghost btn-sm">Sign In</a>
+    <a href="pages/register.html" class="btn btn-primary btn-sm">Join Free →</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div style="position:relative;z-index:1;max-width:680px">
+    <div style="display:inline-flex;align-items:center;gap:.4rem;background:var(--blue-lt);border:1px solid #c7d7fd;border-radius:30px;padding:.3rem .9rem;font-size:.78rem;font-weight:800;color:var(--blue);margin-bottom:1.5rem">
+      Social Media Platform
+    </div>
+    <h1 class="hero-title">Share moments.<br>Connect with people.</h1>
+    <p style="font-size:1.05rem;color:var(--text2);max-width:480px;margin:0 auto 2.25rem;line-height:1.75">
+      Pulse is a simple, friendly social platform — post, like, comment, and follow the people you care about.
+    </p>
+    <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap">
+      <a href="pages/register.html" class="btn btn-primary" style="padding:.75rem 2rem;font-size:1rem">Create Account 🚀</a>
+      <a href="pages/explore.html"  class="btn btn-ghost"   style="padding:.75rem 2rem;font-size:1rem">Browse Posts →</a>
+    </div>
+
+    <!-- Preview cards -->
+    <div style="display:flex;gap:1rem;margin-top:2.5rem;flex-wrap:wrap;justify-content:center">
+      <div class="mock-post" style="max-width:300px">
+        <div class="mock-row">
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=john" class="mock-avatar" alt="">
+          <div>
+            <div style="font-weight:800;font-size:.875rem">John Doe</div>
+            <div style="font-size:.75rem;color:var(--text3)">@johndoe · 2h</div>
+          </div>
+        </div>
+        <p style="font-size:.9rem;line-height:1.6;margin-bottom:.65rem">Just finished my first React project! Loving frontend development 🚀</p>
+        <div style="display:flex;gap:.75rem;font-size:.82rem;color:var(--text3);font-weight:700;border-top:1px solid var(--border);padding-top:.65rem">
+          <span>❤️ 12</span><span>💬 3</span>
+        </div>
+      </div>
+      <div class="mock-post" style="max-width:300px">
+        <div class="mock-row">
+          <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=sarah" class="mock-avatar" alt="">
+          <div>
+            <div style="font-weight:800;font-size:.875rem">Sarah Khan</div>
+            <div style="font-size:.75rem;color:var(--text3)">@sarahk · 5h</div>
+          </div>
+        </div>
+        <p style="font-size:.9rem;line-height:1.6;margin-bottom:.65rem">Golden hour shots from today's walk. Nature never disappoints 🌅</p>
+        <div style="display:flex;gap:.75rem;font-size:.82rem;color:var(--text3);font-weight:700;border-top:1px solid var(--border);padding-top:.65rem">
+          <span>❤️ 24</span><span>💬 5</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div style="text-align:center;margin-bottom:3rem">
+    <h2 style="font-size:1.75rem;font-weight:800;margin-bottom:.5rem">Everything you need to connect</h2>
+    <p style="color:var(--text3)">Simple, clean and built for everyone</p>
+  </div>
+  <div class="feature-grid">
+    <div class="feature-card"><div class="feature-icon">📝</div><div class="feature-title">Post Anything</div><div class="feature-desc">Share your thoughts and photos. Upload images directly from your device.</div></div>
+    <div class="feature-card"><div class="feature-icon">❤️</div><div class="feature-title">Likes & Comments</div><div class="feature-desc">React to posts you love and join conversations with comments.</div></div>
+    <div class="feature-card"><div class="feature-icon">👥</div><div class="feature-title">Follow People</div><div class="feature-desc">Follow friends to build a personalised home feed.</div></div>
+    <div class="feature-card"><div class="feature-icon">🔭</div><div class="feature-title">Explore</div><div class="feature-desc">Discover trending posts and search for new people to follow.</div></div>
+    <div class="feature-card"><div class="feature-icon">👤</div><div class="feature-title">Rich Profiles</div><div class="feature-desc">Upload a profile photo and cover image. Write your bio.</div></div>
+    <div class="feature-card"><div class="feature-icon">📱</div><div class="feature-title">Mobile Friendly</div><div class="feature-desc">Works great on any screen size with a mobile bottom navigation.</div></div>
+  </div>
+</section>
+
+<div style="text-align:center;padding:5rem 1.5rem;background:var(--white)">
+  <h2 style="font-size:1.75rem;font-weight:800;margin-bottom:.5rem">Ready to join?</h2>
+  <p style="color:var(--text3);margin-bottom:1.75rem">It takes 30 seconds and it's completely free.</p>
+  <a href="pages/register.html" class="btn btn-primary" style="padding:.8rem 2.5rem;font-size:1rem">Get Started →</a>
+</div>
+
+<footer class="site-footer">
+  © 2026 Pulse<br>
+  <a href="pages/login.html"    style="color:var(--blue)">Login</a> ·
+  <a href="pages/register.html" style="color:var(--blue)">Register</a> ·
+  <a href="pages/explore.html"  style="color:var(--blue)">Explore</a>
+</footer>
+
+<script src="js/app.js"></script>
+<script>
+  if (Auth.loggedIn) goTo('pages/feed.html');
+</script>
+</body>
+</html>

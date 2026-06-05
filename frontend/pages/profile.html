@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profile — Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  .profile-cover { position:relative; cursor:pointer; }
+  .cover-upload-hint {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0); color:transparent; font-weight:700; font-size:.9rem;
+    transition:.2s; border-radius:var(--radius) var(--radius) 0 0;
+  }
+  .profile-cover:hover .cover-upload-hint { background:rgba(0,0,0,.35); color:#fff; }
+  .avatar-upload-wrap { position:relative; display:inline-block; cursor:pointer; }
+  .avatar-upload-hint {
+    position:absolute; inset:0; border-radius:50%; background:rgba(0,0,0,0);
+    display:flex; align-items:center; justify-content:center;
+    color:transparent; font-size:1.2rem; transition:.2s;
+  }
+  .avatar-upload-wrap:hover .avatar-upload-hint { background:rgba(0,0,0,.4); color:#fff; }
+</style>
+</head>
+<body>
+
+<nav class="navbar" id="navbar"></nav>
+
+<div class="layout" style="max-width:860px">
+  <main class="feed" style="flex:1">
+    <div class="card" id="profile-header">
+      <div class="spinner-wrap"><div class="spinner"></div></div>
+    </div>
+    <div id="profile-tab-content"></div>
+  </main>
+
+  <aside class="sidebar-right">
+    <div class="card" id="right-sugg-panel">
+      <div class="widget-title">Suggested for You</div>
+      <div id="right-sugg-list"><div class="spinner-wrap"><div class="spinner"></div></div></div>
+    </div>
+  </aside>
+</div>
+
+<nav class="mobile-nav">
+  <button class="mobile-nav-item" onclick="goTo('feed.html')"><span class="mobile-nav-icon">🏠</span>Home</button>
+  <button class="mobile-nav-item" onclick="goTo('explore.html')"><span class="mobile-nav-icon">🔭</span>Explore</button>
+  <button class="mobile-nav-item active"><span class="mobile-nav-icon">👤</span>Profile</button>
+</nav>
+
+<div id="toast-wrap"></div>
+<script src="../js/app.js"></script>
+<script>
+var pageUsername = new URLSearchParams(location.search).get('u') || (Auth.user ? Auth.user.username : null);
+if (!pageUsername) goTo('feed.html');
+
+var profileData = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  buildNavbar('');
+  loadProfile();
+  loadRightSuggestions();
+});
+
+async function loadProfile() {
+  try {
+    var u = await apiGet('/users/' + pageUsername);
+    profileData = u;
+    document.title = esc(u.full_name) + ' (@' + esc(u.username) + ') — Pulse';
+    renderProfileHeader(u);
+    showTab('posts');
+  } catch (e) {
+    document.getElementById('profile-header').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">😕</div><h3>User not found</h3>' +
+      '<button class="btn btn-ghost" onclick="history.back()" style="margin-top:.75rem">← Go back</button></div>';
+  }
+}
+
+function renderProfileHeader(u) {
+  var isMe   = Auth.loggedIn && Auth.user && Auth.user.username === u.username;
+  var iFollow = !!u.i_follow;
+
+  var coverSrc = (u.cover_url && u.cover_url.trim())
+    ? (u.cover_url.startsWith('/uploads/') ? API_BASE + u.cover_url : u.cover_url)
+    : '';
+  var coverStyle = coverSrc
+    ? 'background-image:url(' + esc(coverSrc) + ');background-size:cover;background-position:center'
+    : 'background:linear-gradient(135deg,#4f7ef8 0%,#a855f7 50%,#f472b6 100%)';
+
+  var coverHint = isMe
+    ? '<div class="cover-upload-hint">📷 Change Cover Photo</div>' +
+      '<input type="file" id="cover-file-input" accept="image/*" style="display:none" onchange="uploadCover(this)">'
+    : '';
+  var coverClick = isMe ? 'onclick="document.getElementById(\'cover-file-input\').click()"' : '';
+
+  var avatarSrc = avatarUrl(u.avatar_url, u.username);
+  var avatarHtml = isMe
+    ? '<div class="avatar-upload-wrap" onclick="document.getElementById(\'avatar-file-input\').click()" title="Change profile photo">' +
+        '<img src="' + esc(avatarSrc) + '" class="avatar-xl" id="profile-avatar-img" alt="">' +
+        '<div class="avatar-upload-hint">📷</div>' +
+        '<input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="uploadAvatar(this)">' +
+      '</div>'
+    : '<img src="' + esc(avatarSrc) + '" class="avatar-xl" alt="">';
+
+  var actionBtn = isMe
+    ? '<button class="btn btn-outline btn-sm" onclick="openEditProfile()">✏️ Edit Profile</button>'
+    : Auth.loggedIn
+      ? '<button class="btn btn-sm ' + (iFollow ? 'btn-ghost' : 'btn-primary') + '" id="follow-btn" onclick="handleFollow()">' +
+          (iFollow ? '✓ Following' : '+ Follow') + '</button>'
+      : '<a href="login.html" class="btn btn-primary btn-sm">Follow</a>';
+
+  var bioHtml = u.bio ? '<div class="profile-bio">' + esc(u.bio) + '</div>' : '';
+  var joinDate = new Date(u.created_at).toLocaleDateString('en-US', { month:'long', year:'numeric' });
+
+  document.getElementById('profile-header').innerHTML =
+    '<div class="profile-cover" ' + coverClick + ' style="' + coverStyle + '">' +
+      coverHint +
+    '</div>' +
+    '<div class="profile-info">' +
+      '<div class="profile-avatar-wrap">' +
+        avatarHtml +
+        '<div>' + actionBtn + '</div>' +
+      '</div>' +
+      '<div class="profile-name">' + esc(u.full_name || u.username) + '</div>' +
+      '<div class="profile-handle">@' + esc(u.username) + '</div>' +
+      bioHtml +
+      '<div style="font-size:.78rem;color:var(--text3);margin-top:.4rem">📅 Joined ' + joinDate + '</div>' +
+      '<div class="profile-stats">' +
+        '<div class="profile-stat" onclick="showTab(\'posts\')">' +
+          '<span class="profile-stat-num">' + (u.posts || 0) + '</span>' +
+          '<span class="profile-stat-label">Posts</span>' +
+        '</div>' +
+        '<div class="profile-stat" onclick="showTab(\'followers\')">' +
+          '<span class="profile-stat-num" id="follower-count">' + (u.followers || 0) + '</span>' +
+          '<span class="profile-stat-label">Followers</span>' +
+        '</div>' +
+        '<div class="profile-stat" onclick="showTab(\'following\')">' +
+          '<span class="profile-stat-num">' + (u.following || 0) + '</span>' +
+          '<span class="profile-stat-label">Following</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="profile-tabs">' +
+      '<button class="profile-tab active" id="ptab-posts"     onclick="showTab(\'posts\')">Posts</button>' +
+      '<button class="profile-tab"        id="ptab-followers" onclick="showTab(\'followers\')">Followers</button>' +
+      '<button class="profile-tab"        id="ptab-following" onclick="showTab(\'following\')">Following</button>' +
+    '</div>';
+}
+
+async function handleFollow() {
+  if (!requireLogin()) return;
+  try {
+    var r   = await apiPost('/users/' + pageUsername + '/follow');
+    var btn = document.getElementById('follow-btn');
+    if (btn) {
+      btn.textContent = r.following ? '✓ Following' : '+ Follow';
+      btn.className   = 'btn btn-sm ' + (r.following ? 'btn-ghost' : 'btn-primary');
+    }
+    var cnt = document.getElementById('follower-count');
+    if (cnt && profileData) {
+      profileData.followers += r.following ? 1 : -1;
+      cnt.textContent = profileData.followers;
+    }
+    toast(r.following ? 'Following @' + pageUsername : 'Unfollowed @' + pageUsername, 'success');
+  } catch (e) { toast(e.error || 'Failed', 'error'); }
+}
+
+async function showTab(tab) {
+  ['posts','followers','following'].forEach(function(t) {
+    var btn = document.getElementById('ptab-' + t);
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+
+  var el = document.getElementById('profile-tab-content');
+  el.innerHTML = '<div class="card"><div class="spinner-wrap"><div class="spinner"></div></div></div>';
+
+  if (tab === 'posts') {
+    try {
+      var posts = await apiGet('/users/' + pageUsername + '/posts');
+      if (!posts.length) {
+        el.innerHTML = '<div class="card empty-state"><div class="empty-icon">📝</div><h3>No posts yet</h3><p>@' + esc(pageUsername) + ' hasn\'t posted anything yet.</p></div>';
+        return;
+      }
+      el.innerHTML = posts.map(buildPostCard).join('');
+    } catch {
+      el.innerHTML = '<div class="card empty-state"><div class="empty-icon">⚠️</div><h3>Failed to load posts</h3></div>';
+    }
+  } else {
+    var endpoint = '/users/' + pageUsername + '/' + tab;
+    try {
+      var users = await apiGet(endpoint);
+      if (!users.length) {
+        el.innerHTML = '<div class="card empty-state"><div class="empty-icon">👥</div><h3>No ' + tab + ' yet</h3></div>';
+        return;
+      }
+      var html = '<div class="card">';
+      users.forEach(function(u) {
+        var isMe  = Auth.loggedIn && Auth.user && Auth.user.id === u.id;
+        var fbtn  = (!isMe && Auth.loggedIn)
+          ? '<button class="btn btn-outline btn-sm" id="pf-' + u.id + '" onclick="quickFollow(\'' + esc(u.username) + '\',' + u.id + ')">Follow</button>'
+          : '';
+        html += '<div class="user-list-item">' +
+          '<img src="' + esc(avatarUrl(u.avatar_url, u.username)) + '" class="avatar-md" alt="" style="cursor:pointer" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' +
+          '<div class="user-list-info">' +
+            '<div class="user-list-name" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' + esc(u.full_name || u.username) + '</div>' +
+            '<div class="user-list-bio">@' + esc(u.username) + (u.bio ? ' · ' + esc(u.bio.slice(0,60)) : '') + '</div>' +
+          '</div>' + fbtn +
+        '</div>';
+      });
+      el.innerHTML = html + '</div>';
+    } catch {
+      el.innerHTML = '<div class="card empty-state"><div class="empty-icon">⚠️</div><h3>Failed to load</h3></div>';
+    }
+  }
+}
+
+async function quickFollow(username, uid) {
+  if (!requireLogin()) return;
+  try {
+    var r   = await apiPost('/users/' + username + '/follow');
+    var btn = document.getElementById('pf-' + uid);
+    if (btn) {
+      btn.textContent = r.following ? '✓ Following' : 'Follow';
+      btn.className   = 'btn btn-sm ' + (r.following ? 'btn-ghost' : 'btn-outline');
+    }
+    toast(r.following ? 'Following @' + username : 'Unfollowed @' + username, 'success');
+  } catch (e) { toast(e.error || 'Failed', 'error'); }
+}
+
+/* ── Edit Profile Modal ─────────────── */
+function openEditProfile() {
+  var u = Auth.user;
+  showModal(
+    '<div class="modal-header">' +
+      '<span class="modal-title">✏️ Edit Profile</span>' +
+      '<button class="modal-close" onclick="closeModal()">✕</button>' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label class="form-label">Display Name</label>' +
+      '<input class="form-input" id="ep-name" value="' + esc(u.full_name || '') + '" placeholder="Your name">' +
+    '</div>' +
+    '<div class="form-group">' +
+      '<label class="form-label">Bio</label>' +
+      '<textarea class="form-input" id="ep-bio" rows="3" placeholder="Tell people about yourself">' + esc(u.bio || '') + '</textarea>' +
+    '</div>' +
+    '<div style="display:flex;justify-content:flex-end;gap:.6rem;margin-top:1rem">' +
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>' +
+      '<button class="btn btn-primary" onclick="saveProfile()">Save Changes</button>' +
+    '</div>'
+  );
+}
+
+async function saveProfile() {
+  var name = document.getElementById('ep-name').value.trim();
+  var bio  = document.getElementById('ep-bio').value.trim();
+  try {
+    var updated = await apiPut('/auth/profile', { full_name: name, bio: bio });
+    Auth.set(Auth.token, Object.assign({}, Auth.user, updated));
+    closeModal();
+    toast('Profile updated! ✨', 'success');
+    loadProfile();
+  } catch (e) { toast(e.error || 'Update failed', 'error'); }
+}
+
+/* ── Avatar upload ──────────────────── */
+async function uploadAvatar(input) {
+  if (!input.files[0]) return;
+  var fd = new FormData();
+  fd.append('avatar', input.files[0]);
+  try {
+    var r = await apiForm('/auth/avatar', fd);
+    var newUrl = API_BASE + r.avatar_url;
+    // Update displayed avatar immediately
+    var img = document.getElementById('profile-avatar-img');
+    if (img) img.src = newUrl;
+    // Update navbar avatar
+    var navAvatar = document.querySelector('.nav-avatar');
+    if (navAvatar) navAvatar.src = newUrl;
+    // Persist in local state
+    Auth.set(Auth.token, Object.assign({}, Auth.user, { avatar_url: r.avatar_url }));
+    toast('Profile photo updated! 📷', 'success');
+  } catch (e) { toast(e.error || 'Upload failed', 'error'); }
+}
+
+/* ── Cover upload ───────────────────── */
+async function uploadCover(input) {
+  if (!input.files[0]) return;
+  var fd = new FormData();
+  fd.append('cover', input.files[0]);
+  try {
+    var r = await apiForm('/auth/cover', fd);
+    toast('Cover photo updated! 🖼️', 'success');
+    loadProfile(); // reload to show new cover
+  } catch (e) { toast(e.error || 'Upload failed', 'error'); }
+}
+
+/* ── Right sidebar suggestions ──────── */
+async function loadRightSuggestions() {
+  if (!Auth.loggedIn) { document.getElementById('right-sugg-panel').style.display = 'none'; return; }
+  var el = document.getElementById('right-sugg-list');
+  try {
+    var users = await apiGet('/users/suggestions');
+    var filtered = users.filter(function(u) { return u.username !== pageUsername; }).slice(0,4);
+    if (!filtered.length) { document.getElementById('right-sugg-panel').style.display = 'none'; return; }
+    var html = '';
+    filtered.forEach(function(u) {
+      html += '<div class="suggestion-item">' +
+        '<img src="' + esc(avatarUrl(u.avatar_url, u.username)) + '" class="avatar-sm" alt="" style="cursor:pointer" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' +
+        '<div class="sugg-info">' +
+          '<div class="sugg-name" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' + esc(u.full_name || u.username) + '</div>' +
+          '<div class="sugg-handle">@' + esc(u.username) + '</div>' +
+        '</div>' +
+        '<button class="btn btn-outline btn-sm" id="rs-' + u.id + '" onclick="quickFollow(\'' + esc(u.username) + '\',' + u.id + ')">Follow</button>' +
+      '</div>';
+    });
+    el.innerHTML = html;
+  } catch { document.getElementById('right-sugg-panel').style.display = 'none'; }
+}
+</script>
+</body>
+</html>

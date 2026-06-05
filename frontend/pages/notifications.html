@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notifications — Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div id="navbar-root"></div>
+
+<main style="max-width:660px;margin:0 auto;padding:calc(var(--nav-h)+1.5rem) 1rem 3rem">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+    <h1 style="font-family:var(--font-brand);font-size:1.6rem;font-weight:700">Notifications</h1>
+    <button class="btn btn-ghost btn-sm" onclick="markAllRead()">Mark all read</button>
+  </div>
+
+  <div id="notif-container">
+    <div class="card" style="padding:1.5rem">
+      <div class="spinner-wrap"><div class="spinner"></div></div>
+    </div>
+  </div>
+</main>
+
+<nav class="mobile-nav">
+  <button class="mobile-nav-item" onclick="window.location.href='feed.html'">
+    <span class="mobile-nav-icon">🏠</span> Home
+  </button>
+  <button class="mobile-nav-item" onclick="window.location.href='explore.html'">
+    <span class="mobile-nav-icon">🔭</span> Explore
+  </button>
+  <button class="mobile-nav-item" onclick="openComposeModal()">
+    <span class="mobile-nav-icon">✏️</span> Post
+  </button>
+  <button class="mobile-nav-item active">
+    <span class="mobile-nav-icon">🔔</span> Notifs
+  </button>
+</nav>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="../js/api.js"></script>
+<script src="../js/navbar.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  if (!State.isLoggedIn) { window.location.href = 'login.html'; return; }
+  loadNotifications();
+});
+
+async function loadNotifications() {
+  const el = document.getElementById('notif-container');
+  try {
+    const notifs = await API.notifications();
+    if (!notifs.length) {
+      el.innerHTML = `
+        <div class="card empty-state">
+          <div class="empty-state-icon">🔔</div>
+          <h3>No notifications yet</h3>
+          <p>When someone likes or comments on your posts, you'll see it here.</p>
+        </div>`;
+      return;
+    }
+
+    const icons = { like:'❤️', comment:'💬', follow:'👤', mention:'@' };
+    const msgs = {
+      like:    n => `<strong>${n.actor_name}</strong> liked your post`,
+      comment: n => `<strong>${n.actor_name}</strong> commented on your post`,
+      follow:  n => `<strong>${n.actor_name}</strong> started following you`,
+      mention: n => `<strong>${n.actor_name}</strong> mentioned you in a post`,
+    };
+
+    // Group by date
+    const today     = new Date().toDateString();
+    const yesterday = new Date(Date.now()-86400000).toDateString();
+
+    const grouped = {};
+    notifs.forEach(n => {
+      const d = new Date(n.created_at).toDateString();
+      const label = d === today ? 'Today' : d === yesterday ? 'Yesterday' : new Date(n.created_at).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+      if (!grouped[label]) grouped[label] = [];
+      grouped[label].push(n);
+    });
+
+    el.innerHTML = Object.entries(grouped).map(([label, items]) => `
+      <div style="margin-bottom:1.25rem">
+        <div style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:.25rem .25rem .75rem">${label}</div>
+        <div class="card" style="overflow:hidden">
+          ${items.map(n => `
+            <div class="notif-item ${n.is_read ? '' : 'unread'}"
+                 onclick="window.location.href='profile.html?u=${n.actor_username}'"
+                 style="border-bottom:1px solid var(--border)">
+              <img src="${n.actor_avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${n.actor_username}`}"
+                   alt="${n.actor_username}" class="avatar avatar-sm" loading="lazy">
+              <div style="flex:1">
+                <div class="notif-text">${(msgs[n.type] || (() => `<strong>${n.actor_name}</strong> interacted with you`))(n)}</div>
+                <div class="notif-time">${timeAgo(n.created_at)}</div>
+              </div>
+              <div class="notif-icon ${n.type}">${icons[n.type] || '🔔'}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  } catch {
+    el.innerHTML = `<div class="card empty-state"><div class="empty-state-icon">⚠️</div><h3>Failed to load notifications</h3><button class="btn btn-ghost" onclick="loadNotifications()" style="margin-top:.75rem">Retry</button></div>`;
+  }
+}
+
+async function markAllRead() {
+  // Notifications are auto-marked read on API fetch
+  document.querySelectorAll('.notif-item.unread').forEach(el => el.classList.remove('unread'));
+  toast('All marked as read', 'success');
+}
+</script>
+</body>
+</html>

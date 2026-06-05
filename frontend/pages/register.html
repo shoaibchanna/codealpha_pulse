@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Join Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<div class="auth-page">
+  <div style="position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0">
+    <div style="position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(244,114,182,.13),transparent 70%);top:-100px;left:-100px"></div>
+    <div style="position:absolute;width:350px;height:350px;border-radius:50%;background:radial-gradient(circle,rgba(79,126,248,.11),transparent 70%);bottom:-60px;right:-60px"></div>
+  </div>
+
+  <div class="auth-card" style="position:relative;z-index:1;max-width:430px">
+    <a class="auth-logo" href="../index.html">Pulse ✨</a>
+    <h1 class="auth-title">Create account</h1>
+    <p class="auth-sub">Join the community — it's free</p>
+
+    <div id="err-msg" class="alert alert-error"   style="display:none"></div>
+    <div id="ok-msg"  class="alert alert-success" style="display:none"></div>
+
+    <form id="reg-form">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group">
+          <label class="form-label">First Name</label>
+          <input class="form-input" id="f-fname" placeholder="Alex" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last Name</label>
+          <input class="form-input" id="f-lname" placeholder="Johnson">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="f-username" placeholder="alexj" required
+               minlength="3" maxlength="30" autocomplete="username">
+        <small style="font-size:.72rem;color:var(--text3)">Letters, numbers and underscores only</small>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="f-email" type="email" placeholder="alex@email.com"
+               required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="f-pass" type="password" placeholder="Choose a password"
+               required autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="submit-btn"
+              style="padding:.75rem;font-size:1rem;margin-top:.25rem">Create Account</button>
+    </form>
+
+    <div class="auth-switch">Already have an account? <a href="login.html">Sign in →</a></div>
+  </div>
+</div>
+
+<div id="toast-wrap"></div>
+<script src="../js/app.js"></script>
+<script>
+if (Auth.loggedIn) goTo('feed.html');
+
+document.getElementById('reg-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var err = document.getElementById('err-msg');
+  var ok  = document.getElementById('ok-msg');
+  var btn = document.getElementById('submit-btn');
+  err.style.display = ok.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Creating account…';
+
+  var fn = document.getElementById('f-fname').value.trim();
+  var ln = document.getElementById('f-lname').value.trim();
+  var fullName = fn + (ln ? ' ' + ln : '');
+
+  try {
+    var data = await apiPost('/auth/register', {
+      username:  document.getElementById('f-username').value.trim().toLowerCase(),
+      email:     document.getElementById('f-email').value.trim().toLowerCase(),
+      password:  document.getElementById('f-pass').value,
+      full_name: fullName || undefined
+    });
+    Auth.set(data.token, data.user);
+    ok.textContent = ' Account created! Redirecting…';
+    ok.style.display = 'block';
+    setTimeout(function() { goTo('feed.html'); }, 700);
+  } catch (ex) {
+    err.textContent = ex.error || 'Registration failed.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Create Account ';
+  }
+});
+</script>
+</body>
+</html>

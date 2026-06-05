@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Post — Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div id="navbar-root"></div>
+
+<main style="max-width:680px;margin:0 auto;padding:calc(var(--nav-h)+1.5rem) 1rem 3rem">
+
+  <!-- Back -->
+  <button class="btn btn-ghost btn-sm" onclick="history.back()" style="margin-bottom:1rem">
+    ← Back
+  </button>
+
+  <div id="post-container">
+    <div class="card post-card">
+      <div style="display:flex;gap:.75rem">
+        <div class="skeleton" style="width:44px;height:44px;border-radius:50%;flex-shrink:0"></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:.5rem">
+          <div class="skeleton" style="width:160px;height:14px;border-radius:4px"></div>
+          <div class="skeleton" style="width:100%;height:14px;border-radius:4px"></div>
+          <div class="skeleton" style="width:80%;height:14px;border-radius:4px"></div>
+          <div class="skeleton" style="width:60%;height:14px;border-radius:4px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comments thread -->
+  <div id="thread-section" style="margin-top:1rem">
+    <div style="font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:.25rem .25rem .75rem">
+      Comments
+    </div>
+    <div id="thread-comments"></div>
+  </div>
+</main>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="../js/api.js"></script>
+<script src="../js/navbar.js"></script>
+<script>
+const postId = new URLSearchParams(location.search).get('id');
+if (!postId) window.location.href = 'feed.html';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadPost();
+  await loadCommentThread();
+});
+
+async function loadPost() {
+  const el = document.getElementById('post-container');
+  try {
+    const post = await API.getPost(postId);
+    document.title = `${post.display_name} on Pulse`;
+    el.innerHTML   = buildPostCard(post);
+    // Auto-open comments in thread view
+    const commentsSection = document.getElementById(`comments-${postId}`);
+    if (commentsSection) {
+      commentsSection.style.display = 'none'; // thread is below
+    }
+  } catch {
+    el.innerHTML = `<div class="card empty-state"><div class="empty-state-icon">😕</div><h3>Post not found</h3><a href="feed.html" class="btn btn-ghost" style="margin-top:.75rem">Go home</a></div>`;
+  }
+}
+
+async function loadCommentThread() {
+  const el = document.getElementById('thread-comments');
+  try {
+    const comments = await API.getComments(postId);
+
+    if (State.isLoggedIn) {
+      el.insertAdjacentHTML('beforebegin', `
+        <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+          <div style="display:flex;gap:.75rem;align-items:flex-start">
+            <img src="${State.user.avatar_url||`https://api.dicebear.com/7.x/avataaars/svg?seed=${State.user.username}`}"
+                 alt="${State.user.username}" class="avatar avatar-md">
+            <div style="flex:1">
+              <textarea class="form-input" id="thread-comment-input" rows="3"
+                        placeholder="Write a thoughtful reply…" style="margin-bottom:.75rem"></textarea>
+              <button class="btn btn-primary btn-sm" onclick="submitThreadComment()">Post Reply</button>
+            </div>
+          </div>
+        </div>
+      `);
+    }
+
+    if (!comments.length) {
+      el.innerHTML = `<div class="card empty-state" style="padding:2.5rem"><div class="empty-state-icon" style="font-size:2rem">💬</div><h3>No replies yet</h3><p>Be the first to comment!</p></div>`;
+      return;
+    }
+    el.innerHTML = comments.map(c => buildThreadComment(c)).join('');
+  } catch {
+    el.innerHTML = `<div class="card empty-state"><div class="empty-state-icon">⚠️</div><h3>Failed to load comments</h3></div>`;
+  }
+}
+
+function buildThreadComment(c) {
+  const isOwn = State.isLoggedIn && State.user?.id === c.user_id;
+  return `
+    <div class="card" style="padding:1.1rem 1.25rem;margin-bottom:.75rem;animation:fade-up .25s var(--ease)" id="tc-${c.id}">
+      <div style="display:flex;gap:.75rem">
+        <img src="${c.avatar_url||`https://api.dicebear.com/7.x/avataaars/svg?seed=${c.username}`}"
+             alt="${c.username}" class="avatar avatar-md" loading="lazy">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.35rem">
+            <span style="font-weight:600;font-size:.9rem;cursor:pointer"
+                  onclick="window.location.href='profile.html?u=${c.username}'">${c.display_name}</span>
+            ${verifiedBadge(c.is_verified)}
+            <span style="color:var(--text-muted);font-size:.75rem">@${c.username}</span>
+            <span style="color:var(--text-muted);font-size:.75rem">· ${timeAgo(c.created_at)}</span>
+          </div>
+          <div style="font-size:.9rem;line-height:1.6;color:var(--text)">${linkifyContent(c.content)}</div>
+          <div style="display:flex;align-items:center;gap:.25rem;margin-top:.625rem">
+            <button class="comment-like-btn ${c.viewer_liked?'liked':''}" onclick="handleCommentLike(${c.id},this)">
+              ${c.viewer_liked?'❤️':'🤍'} <span>${c.like_count||0}</span>
+            </button>
+            ${isOwn ? `<button class="comment-like-btn" onclick="deleteThreadComment(${c.id})" style="color:var(--red)">🗑 Delete</button>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function submitThreadComment() {
+  if (!State.isLoggedIn) { window.location.href='login.html'; return; }
+  const input   = document.getElementById('thread-comment-input');
+  const content = input.value.trim();
+  if (!content) { toast('Write something first!','error'); return; }
+  try {
+    const c = await API.addComment(postId, { content });
+    input.value = '';
+    const threadComments = document.getElementById('thread-comments');
+    const empty = threadComments.querySelector('.empty-state');
+    if (empty) threadComments.innerHTML = '';
+    threadComments.insertAdjacentHTML('afterbegin', buildThreadComment(c));
+    // Update comment count on post card
+    const cnt = document.getElementById(`comment-count-${postId}`);
+    if (cnt) cnt.textContent = parseInt(cnt.textContent||0) + 1;
+    toast('Reply posted!','success');
+  } catch (e) { toast(e.error||'Failed','error'); }
+}
+
+async function deleteThreadComment(cid) {
+  if (!confirm('Delete this reply?')) return;
+  try {
+    await API.deleteComment(postId, cid);
+    document.getElementById(`tc-${cid}`)?.remove();
+    const cnt = document.getElementById(`comment-count-${postId}`);
+    if (cnt) cnt.textContent = Math.max(0, parseInt(cnt.textContent||1) - 1);
+    toast('Reply deleted','success');
+  } catch (e) { toast(e.error||'Failed','error'); }
+}
+</script>
+</body>
+</html>

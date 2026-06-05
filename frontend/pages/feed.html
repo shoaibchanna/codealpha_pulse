@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Feed — Pulse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="navbar" id="navbar"></nav>
+
+<div class="layout">
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar-left">
+    <div class="card" id="side-profile-card" style="display:none"></div>
+    <div class="card">
+      <nav class="side-nav">
+        <button class="side-nav-btn active" onclick="goTo('feed.html')">
+          <span class="side-nav-icon">🏠</span> Home
+        </button>
+        <button class="side-nav-btn" onclick="goTo('explore.html')">
+          <span class="side-nav-icon">🔭</span> Explore
+        </button>
+        <button class="side-nav-btn" id="profile-side-btn">
+          <span class="side-nav-icon">👤</span> Profile
+        </button>
+        <button class="side-nav-btn" onclick="openCompose()">
+          <span class="side-nav-icon">✏️</span> New Post
+        </button>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- MAIN FEED -->
+  <main class="feed">
+    <!-- Tab bar -->
+    <div class="card" style="display:flex;padding:.4rem .5rem;gap:.3rem">
+      <button class="side-nav-btn active" id="tab-feed" style="flex:1;justify-content:center" onclick="switchTab('feed')">
+        🏠 Following
+      </button>
+      <button class="side-nav-btn" id="tab-explore" style="flex:1;justify-content:center" onclick="switchTab('explore')">
+        🔭 Explore All
+      </button>
+    </div>
+
+    <!-- Compose box (logged-in users) -->
+    <div class="card compose" id="compose-card" style="display:none">
+      <div class="compose-row">
+        <img id="compose-avatar" src="" class="avatar-md" alt="">
+        <textarea class="compose-textarea" id="compose-text"
+          placeholder="What's happening? Share something…"
+          oninput="autoResizeTextarea(this)"></textarea>
+      </div>
+      <div class="img-input-wrap" id="compose-img-wrap" style="display:none;margin-top:.6rem">
+        <input type="file" id="compose-file" accept="image/*" class="form-input" style="padding:.4rem">
+        <div id="compose-img-preview" style="margin-top:.4rem"></div>
+      </div>
+      <div class="compose-bottom">
+        <div class="compose-actions">
+          <button class="compose-action" onclick="toggleComposeImage()">🖼 Photo</button>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="submitFeedPost()">Post ✨</button>
+      </div>
+    </div>
+
+    <!-- Guest banner -->
+    <div class="card" id="guest-banner" style="display:none;padding:2rem;text-align:center">
+      <div style="font-size:2.2rem;margin-bottom:.6rem">👋</div>
+      <h2 style="font-size:1.1rem;font-weight:800;margin-bottom:.4rem">Join the conversation</h2>
+      <p style="color:var(--text3);font-size:.875rem;margin-bottom:1.25rem">
+        Sign up to post, like, comment and follow people.
+      </p>
+      <div style="display:flex;gap:.75rem;justify-content:center">
+        <a href="register.html" class="btn btn-primary">Create Account</a>
+        <a href="login.html" class="btn btn-ghost">Sign In</a>
+      </div>
+    </div>
+
+    <!-- Posts container -->
+    <div id="feed-container"></div>
+
+    <div id="all-caught-up" style="display:none;text-align:center;color:var(--text3);padding:2rem;font-size:.875rem">
+      ✓ You're all caught up!
+    </div>
+  </main>
+
+  <!-- RIGHT SIDEBAR -->
+  <aside class="sidebar-right">
+    <div class="card" id="suggestions-panel">
+      <div class="widget-title">Who to Follow</div>
+      <div id="suggestions-list">
+        <div class="spinner-wrap"><div class="spinner"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="widget-title">Trending Tags</div>
+      <div id="tags-list" style="padding:.5rem 1.1rem 1rem;display:flex;flex-wrap:wrap;gap:.4rem"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- Mobile nav -->
+<nav class="mobile-nav">
+  <button class="mobile-nav-item active" onclick="goTo('feed.html')">
+    <span class="mobile-nav-icon">🏠</span>Home
+  </button>
+  <button class="mobile-nav-item" onclick="goTo('explore.html')">
+    <span class="mobile-nav-icon">🔭</span>Explore
+  </button>
+  <button class="mobile-nav-item" onclick="openCompose()">
+    <span class="mobile-nav-icon">✏️</span>Post
+  </button>
+  <button class="mobile-nav-item" id="mobile-profile-btn">
+    <span class="mobile-nav-icon">👤</span>Me
+  </button>
+</nav>
+
+<div id="toast-wrap"></div>
+<script src="../js/app.js"></script>
+<script>
+var currentTab = 'feed';
+var TAGS = ['webdev','css','coding','photography','studyhacks','design','react','javascript'];
+
+document.addEventListener('DOMContentLoaded', function() {
+  buildNavbar('feed');
+
+  // Profile nav buttons
+  document.getElementById('profile-side-btn').addEventListener('click', function() {
+    if (Auth.loggedIn) goTo('profile.html?u=' + Auth.user.username);
+    else goTo('login.html');
+  });
+  document.getElementById('mobile-profile-btn').addEventListener('click', function() {
+    if (Auth.loggedIn) goTo('profile.html?u=' + Auth.user.username);
+    else goTo('login.html');
+  });
+
+  // Build tags
+  var tagsEl = document.getElementById('tags-list');
+  TAGS.forEach(function(tag) {
+    var span = document.createElement('span');
+    span.className = 'hashtag';
+    span.style.cursor = 'pointer';
+    span.style.fontSize = '.85rem';
+    span.style.padding = '.2rem .5rem';
+    span.textContent = '#' + tag;
+    span.addEventListener('click', function() {
+      goTo('explore.html?q=' + encodeURIComponent('#' + tag));
+    });
+    tagsEl.appendChild(span);
+  });
+
+  if (Auth.loggedIn) {
+    document.getElementById('compose-card').style.display  = 'block';
+    document.getElementById('guest-banner').style.display  = 'none';
+    document.getElementById('compose-avatar').src = avatarUrl(Auth.user.avatar_url, Auth.user.username);
+    loadSideProfile();
+    loadSuggestions();
+    loadFeedPosts();
+  } else {
+    document.getElementById('compose-card').style.display  = 'none';
+    document.getElementById('guest-banner').style.display  = 'block';
+    document.getElementById('suggestions-panel').style.display = 'none';
+    currentTab = 'explore';
+    loadExplorePosts();
+  }
+});
+
+/* ── Side profile card ──────────────── */
+async function loadSideProfile() {
+  var card = document.getElementById('side-profile-card');
+  card.style.display = 'block';
+  try {
+    var u = await apiGet('/auth/me');
+    Auth.set(Auth.token, u);
+    card.innerHTML =
+      '<div class="side-profile-card">' +
+        '<img src="' + esc(avatarUrl(u.avatar_url, u.username)) + '" class="side-profile-avatar" ' +
+          'onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')" alt="">' +
+        '<div class="side-profile-name" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' + esc(u.full_name || u.username) + '</div>' +
+        '<div class="side-profile-handle">@' + esc(u.username) + '</div>' +
+        '<div class="side-stats">' +
+          '<div class="side-stat"><span class="side-stat-num">' + (u.posts || 0) + '</span><span class="side-stat-label">Posts</span></div>' +
+          '<div class="side-stat"><span class="side-stat-num">' + (u.followers || 0) + '</span><span class="side-stat-label">Followers</span></div>' +
+          '<div class="side-stat"><span class="side-stat-num">' + (u.following || 0) + '</span><span class="side-stat-label">Following</span></div>' +
+        '</div>' +
+      '</div>';
+  } catch { card.style.display = 'none'; }
+}
+
+/* ── Suggestions ────────────────────── */
+async function loadSuggestions() {
+  var el = document.getElementById('suggestions-list');
+  try {
+    var users = await apiGet('/users/suggestions');
+    if (!users.length) { document.getElementById('suggestions-panel').style.display = 'none'; return; }
+    var html = '';
+    users.forEach(function(u) {
+      html += '<div class="suggestion-item">' +
+        '<img src="' + esc(avatarUrl(u.avatar_url, u.username)) + '" class="avatar-sm" alt="" ' +
+          'style="cursor:pointer" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' +
+        '<div class="sugg-info">' +
+          '<div class="sugg-name" onclick="goTo(\'profile.html?u=' + esc(u.username) + '\')">' + esc(u.full_name || u.username) + '</div>' +
+          '<div class="sugg-handle">@' + esc(u.username) + '</div>' +
+        '</div>' +
+        '<button class="btn btn-outline btn-sm" id="sf-' + u.id + '" ' +
+          'onclick="toggleSuggFollow(\'' + esc(u.username) + '\',' + u.id + ')">Follow</button>' +
+      '</div>';
+    });
+    el.innerHTML = html;
+  } catch { document.getElementById('suggestions-panel').style.display = 'none'; }
+}
+
+async function toggleSuggFollow(username, uid) {
+  if (!requireLogin()) return;
+  try {
+    var r   = await apiPost('/users/' + username + '/follow');
+    var btn = document.getElementById('sf-' + uid);
+    if (btn) {
+      btn.textContent = r.following ? '✓ Following' : 'Follow';
+      btn.className   = 'btn btn-sm ' + (r.following ? 'btn-ghost' : 'btn-outline');
+    }
+    toast(r.following ? 'Following @' + username : 'Unfollowed @' + username, 'success');
+  } catch (e) { toast(e.error || 'Failed', 'error'); }
+}
+
+/* ── Feed loading ───────────────────── */
+async function loadFeedPosts() {
+  var el = document.getElementById('feed-container');
+  el.innerHTML = skeletonHTML(3);
+  try {
+    var posts = await apiGet('/posts/feed');
+    el.innerHTML = '';
+    if (!posts.length) {
+      el.innerHTML = '<div class="card empty-state">' +
+        '<div class="empty-icon">📭</div>' +
+        '<h3>Your feed is empty</h3>' +
+        '<p>Follow people to see their posts here, or check out Explore.</p>' +
+        '<button class="btn btn-primary" onclick="switchTab(\'explore\')" style="margin-top:.75rem">Go to Explore</button>' +
+        '</div>';
+      return;
+    }
+    posts.forEach(function(p) { el.insertAdjacentHTML('beforeend', buildPostCard(p)); });
+    document.getElementById('all-caught-up').style.display = 'block';
+  } catch {
+    el.innerHTML = '<div class="card empty-state"><div class="empty-icon">⚠️</div>' +
+      '<h3>Failed to load</h3><p>Is the server running on port 5000?</p>' +
+      '<button class="btn btn-ghost" onclick="loadFeedPosts()" style="margin-top:.75rem">Retry</button></div>';
+  }
+}
+
+async function loadExplorePosts() {
+  var el = document.getElementById('feed-container');
+  el.innerHTML = skeletonHTML(3);
+  document.getElementById('all-caught-up').style.display = 'none';
+  try {
+    var posts = await apiGet('/posts/explore');
+    el.innerHTML = '';
+    if (!posts.length) {
+      el.innerHTML = '<div class="card empty-state"><div class="empty-icon">📭</div><h3>No posts yet</h3><p>Be the first to post!</p></div>';
+      return;
+    }
+    posts.forEach(function(p) { el.insertAdjacentHTML('beforeend', buildPostCard(p)); });
+  } catch {
+    el.innerHTML = '<div class="card empty-state"><div class="empty-icon">⚠️</div><h3>Failed to load</h3></div>';
+  }
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-feed').classList.toggle('active',    tab === 'feed');
+  document.getElementById('tab-explore').classList.toggle('active', tab === 'explore');
+  document.getElementById('all-caught-up').style.display = 'none';
+  if (tab === 'feed' && Auth.loggedIn) loadFeedPosts();
+  else loadExplorePosts();
+}
+
+/* ── Compose ────────────────────────── */
+function autoResizeTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 220) + 'px';
+}
+
+function toggleComposeImage() {
+  var wrap = document.getElementById('compose-img-wrap');
+  wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+  if (wrap.style.display === 'none') {
+    document.getElementById('compose-file').value = '';
+    document.getElementById('compose-img-preview').innerHTML = '';
+  }
+}
+
+// Preview selected image
+document.addEventListener('DOMContentLoaded', function() {
+  var fileInput = document.getElementById('compose-file');
+  if (fileInput) {
+    fileInput.addEventListener('change', function() {
+      var preview = document.getElementById('compose-img-preview');
+      if (this.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+          preview.innerHTML = '<img src="' + e.target.result + '" style="max-height:160px;border-radius:8px;border:1px solid var(--border)">';
+        };
+        reader.readAsDataURL(this.files[0]);
+      } else {
+        preview.innerHTML = '';
+      }
+    });
+  }
+});
+
+async function submitFeedPost() {
+  if (!requireLogin()) return;
+  var text = document.getElementById('compose-text').value.trim();
+  if (!text) { toast('Write something first!', 'error'); return; }
+
+  var fd = new FormData();
+  fd.append('content', text);
+  var fileInput = document.getElementById('compose-file');
+  if (fileInput && fileInput.files[0]) fd.append('image', fileInput.files[0]);
+
+  try {
+    var p = await apiForm('/posts', fd);
+    document.getElementById('compose-text').value = '';
+    document.getElementById('compose-img-wrap').style.display = 'none';
+    document.getElementById('compose-img-preview').innerHTML = '';
+    if (fileInput) fileInput.value = '';
+    autoResizeTextarea(document.getElementById('compose-text'));
+    document.getElementById('feed-container').insertAdjacentHTML('afterbegin', buildPostCard(p));
+    toast('Posted! 🎉', 'success');
+    if (currentTab !== 'feed') switchTab('feed');
+  } catch (e) { toast(e.error || 'Failed to post', 'error'); }
+}
+
+/* ── Skeleton ───────────────────────── */
+function skeletonHTML(n) {
+  var h = '';
+  for (var i = 0; i < n; i++) {
+    h += '<div class="card post-card">' +
+      '<div style="display:flex;gap:.7rem">' +
+        '<div class="skeleton" style="width:42px;height:42px;border-radius:50%;flex-shrink:0"></div>' +
+        '<div style="flex:1;display:flex;flex-direction:column;gap:.5rem">' +
+          '<div class="skeleton" style="width:140px;height:14px"></div>' +
+          '<div class="skeleton" style="width:80px;height:12px"></div>' +
+          '<div class="skeleton" style="width:100%;height:13px;margin-top:.3rem"></div>' +
+          '<div class="skeleton" style="width:70%;height:13px"></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+  return h;
+}
+</script>
+</body>
+</html>
